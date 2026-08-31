@@ -28,6 +28,35 @@ test("a newer failure invalidates an older pass", () => {
   assert.equal(assessCompletionEvidence(binding, [pass, fail]).complete, false);
 });
 
+test("only a direct release command can satisfy release evidence", () => {
+  const releaseBinding = {
+    ...binding,
+    contract: { completion_evidence: [{ requirement: "evidence:release", acceptable_sources: ["release"] }] },
+  };
+  for (const command of [
+    "git push origin main",
+    "gh pr create --title test",
+    "npm publish",
+  ]) {
+    const exec = { callId: "negative-" + command, name: "bash", arguments: { command } };
+    const action = classifyToolAction(exec);
+    const record = deriveEvidence(exec, { isError: false, content: [] }, releaseBinding, action);
+    assert.notEqual(record.evidence.kind, "release", command);
+    assert.equal(record.requirement_refs.length, 0, command);
+    assert.equal(assessCompletionEvidence(releaseBinding, [record]).complete, false, command);
+  }
+  for (const command of [
+    "gh release view v0.1.0-alpha.2",
+    "gh --repo rrrrrredy/dsh-execution-fidelity-guard release create v0.1.0-alpha.2",
+  ]) {
+    const exec = { callId: "positive-" + command, name: "bash", arguments: { command } };
+    const action = classifyToolAction(exec);
+    const record = deriveEvidence(exec, { isError: false, content: [] }, releaseBinding, action);
+    assert.equal(record.evidence.kind, "release", command);
+    assert.equal(assessCompletionEvidence(releaseBinding, [record]).complete, true, command);
+  }
+});
+
 test("completion claims continue only when required evidence is missing", () => {
   assert.equal(hasCompletionClaim("All tests passed. Done."), true);
   assert.equal(hasCompletionClaim("Unable to verify; not done."), false);
@@ -36,4 +65,3 @@ test("completion claims continue only when required evidence is missing", () => 
   assert.equal(assessment.complete, false);
   assert.equal(assessment.missing.length, 1);
 });
-

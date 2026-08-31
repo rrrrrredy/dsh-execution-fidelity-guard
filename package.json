@@ -1,6 +1,6 @@
 {
   "name": "dsh-execution-fidelity-guard",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "Execution-fidelity guard bundle for DeepSeek Harness",
   "type": "module",
   "main": "index.mjs",

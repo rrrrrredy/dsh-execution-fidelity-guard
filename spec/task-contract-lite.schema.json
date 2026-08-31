@@ -53,15 +53,17 @@
         "additionalProperties": false,
         "required": ["requirement", "acceptable_sources"],
         "properties": {
-          "requirement": { "type": "string", "minLength": 1 },
+          "requirement": {
+            "type": "string",
+            "pattern": "^evidence:(file|command|test|api|real_page|release)(:action:(read|write|write_workspace|delete|destructive|install_local|network|publish|external|external_side_effect|unknown))?$"
+          },
           "acceptable_sources": {
             "type": "array",
             "minItems": 1,
-            "items": { "enum": ["file", "command", "test", "api", "database", "real_page", "release", "user"] }
+            "items": { "enum": ["file", "command", "test", "api", "real_page", "release"] }
           }
         }
       }
     }
   }
 }
-

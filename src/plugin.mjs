@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0
-import path from "node:path";
 import z from "@deepseek-ai/schemastery";
 import { createUserMessage } from "@deepseek-ai/dsh-llm";
 import { classifyToolAction } from "./classify.mjs";
@@ -7,7 +6,7 @@ import { assistantTextForTurn, assessTurnStop } from "./completion.mjs";
 import { loadContract, resolveContractPath } from "./contract.mjs";
 import { deriveEvidence } from "./evidence.mjs";
 import { decidePreTool, messageForDecision } from "./policy.mjs";
-import { appendReceipt, createContinuationReceipt, createDecisionReceipt, safeReceiptError } from "./receipts.mjs";
+import { createContinuationReceipt, createDecisionReceipt } from "./receipts.mjs";
 
 export const name = "execution-fidelity-guard";
 export const inject = ["tools"];
@@ -29,20 +28,13 @@ function validateConfig(raw = {}) {
   if (!["off", "shadow", "balanced"].includes(config.mode)) throw new Error("execution-fidelity-guard: invalid mode");
   if (typeof config.contractPath !== "string" || !config.contractPath.trim()) throw new Error("execution-fidelity-guard: contractPath must be non-empty");
   if (typeof config.receiptPath !== "string") throw new Error("execution-fidelity-guard: receiptPath must be a string");
+  if (config.receiptPath.trim()) {
+    throw new Error("execution-fidelity-guard: disk receipt persistence is disabled in this alpha; keep receiptPath empty");
+  }
   if (!Number.isInteger(config.maxContinuationAttempts) || config.maxContinuationAttempts < 0 || config.maxContinuationAttempts > 2) {
     throw new Error("execution-fidelity-guard: maxContinuationAttempts must be an integer from 0 to 2");
   }
   return config;
-}
-
-function resolveReceiptPath(agent, configuredPath) {
-  if (!configuredPath) return "";
-  const cwd = agent?.session?.header?.cwd || process.cwd();
-  return path.isAbsolute(configuredPath) ? configuredPath : path.resolve(cwd, configuredPath);
-}
-
-function warning(ctx, message) {
-  if (ctx?.logger && typeof ctx.logger.warn === "function") ctx.logger.warn(message);
 }
 
 function pushBounded(list, value, maximum = 512) {
@@ -75,13 +67,6 @@ export function apply(ctx, rawConfig = {}) {
 
   function recordReceipt(agent, receipt) {
     pushBounded(recordsFor(receiptsByAgent, agent, unownedReceipts), receipt);
-    const target = resolveReceiptPath(agent, config.receiptPath);
-    if (!target) return;
-    try {
-      appendReceipt(target, receipt);
-    } catch (error) {
-      warning(ctx, "execution-fidelity-guard: " + safeReceiptError(error));
-    }
   }
 
   ctx.tools.guard((exec) => {
@@ -150,4 +135,3 @@ export function apply(ctx, rawConfig = {}) {
     }));
   });
 }
-

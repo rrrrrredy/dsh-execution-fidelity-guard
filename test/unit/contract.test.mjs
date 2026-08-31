@@ -37,6 +37,16 @@ test("rejects extra fields, placeholders, and unsupported action tags", () => {
   assert.match(errors, /unsupported action rule tag/);
 });
 
+test("rejects unsupported or impossible completion evidence requirements", () => {
+  const unsupported = contract();
+  unsupported.completion_evidence = [{ requirement: "evidence:user", acceptable_sources: ["user"] }];
+  assert.match(validateTaskContractLite(unsupported).join("\n"), /unsupported evidence kind|unsupported kind/);
+
+  const mismatch = contract();
+  mismatch.completion_evidence = [{ requirement: "evidence:release", acceptable_sources: ["test"] }];
+  assert.match(validateTaskContractLite(mismatch).join("\n"), /must include the requirement evidence kind/);
+});
+
 test("accepts a versioned provider projection and rejects a mismatched digest", () => {
   const projection = contract();
   const envelope = {
@@ -51,4 +61,3 @@ test("accepts a versioned provider projection and rejects a mismatched digest", 
   assert.equal(parseContractDocument({ envelope, projection }).status, "bound");
   assert.equal(parseContractDocument({ envelope: { ...envelope, snapshot_sha256: "0".repeat(64) }, projection }).status, "invalid");
 });
-

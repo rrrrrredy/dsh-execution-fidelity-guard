@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { appendFileSync, mkdirSync } from "node:fs";
-import path from "node:path";
-import { makeId, redactText, sha256 } from "./canonical.mjs";
+import { makeId, sha256 } from "./canonical.mjs";
 
 function contractIdentity(binding) {
   return binding.status === "bound"
@@ -41,18 +39,5 @@ export function createContinuationReceipt({ binding, turn, missing, attempt, now
     attempt,
     missing_requirement_refs: missing.map((item) => item.ref),
   };
-}
-
-export function appendReceipt(receiptPath, receipt) {
-  if (!receiptPath) return;
-  const resolved = path.resolve(receiptPath);
-  mkdirSync(path.dirname(resolved), { recursive: true, mode: 0o700 });
-  const line = JSON.stringify(receipt) + "\n";
-  if (Buffer.byteLength(line, "utf8") > 64 * 1024) throw new Error("execution-fidelity-guard receipt exceeds 64 KiB");
-  appendFileSync(resolved, line, { encoding: "utf8", mode: 0o600 });
-}
-
-export function safeReceiptError(error) {
-  return redactText(error?.message || "receipt write failed", 200);
 }
 

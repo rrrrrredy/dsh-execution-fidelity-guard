@@ -22,7 +22,9 @@ For a bare fallback contract, Guard derives `lite:<sha-prefix>`, sets version 1,
 
 Guard never writes to Intent Loop, Continuity, or the Host's canonical task state. A Harness-native one-call approval authorizes that exact execution in the Host; it does not rewrite the contract. Contract changes must come from the canonical intent owner as a new version.
 
-Optional NDJSON receipt persistence writes only Guard-owned records to the configured `receiptPath`. It is disabled by default. Receipts contain tool name, action tags, decision metadata, and argument/result hashes; they do not contain raw arguments or transcript text.
+Guard-owned receipts remain in a bounded in-memory buffer for the active plugin process. Disk receipt persistence is disabled in this alpha, and a non-empty legacy `receiptPath` is rejected. Receipt records contain tool name, action tags, decision metadata, and argument/result hashes; they do not contain raw arguments or transcript text.
+
+`authorization.allowed` is a positive-match record, not a closed allowlist. Unlisted actions continue unless `forbidden`, `requires_user`, or `must_not` matches. The contract owner must put every boundary that needs a stop or approval into one of those three buckets.
 
 ## Final state ownership
 
@@ -34,4 +36,3 @@ Optional NDJSON receipt persistence writes only Guard-owned records to the confi
 | DeepSeek Harness Host | Tool execution, sandbox/permission result, one-call approval, session lifecycle, and final user interaction |
 
 The Guard does not copy full intent state, own the plan, approve on behalf of the user, or claim it can reverse a completed side effect.
-

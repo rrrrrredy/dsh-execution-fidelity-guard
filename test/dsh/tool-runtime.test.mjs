@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Context } from "@deepseek-ai/cordis";
@@ -24,16 +24,15 @@ function contract({ forbidden = ["action:install_local"], requiresUser = ["actio
   };
 }
 
-async function harness(contractValue, options = {}) {
+async function harness(contractValue) {
   const root = mkdtempSync(path.join(os.tmpdir(), "dsh-efg-tools-"));
   const contractPath = path.join(root, "contract.json");
   writeFileSync(contractPath, JSON.stringify(contractValue), "utf8");
-  const receiptPath = options.receipts ? path.join(root, "receipts.ndjson") : "";
   const ctx = new Context();
   await ctx.plugin(SystemPrompt, {});
   await ctx.plugin(ToolRuntime);
-  await ctx.plugin(Guard, { mode: "balanced", contractPath, receiptPath, maxContinuationAttempts: 2 });
-  return { ctx, root, receiptPath };
+  await ctx.plugin(Guard, { mode: "balanced", contractPath, receiptPath: "", maxContinuationAttempts: 2 });
+  return { ctx, root };
 }
 
 function shellTool(name, execute) {
@@ -65,8 +64,34 @@ test("real ToolRuntime denies a deterministic local install before the body", as
   rmSync(root, { recursive: true, force: true });
 });
 
+test("real ToolRuntime denies wrapped and option-prefixed installs before the body", async () => {
+  const { ctx, root } = await harness(contract());
+  let calls = 0;
+  const toolName = process.platform === "win32" ? "pwsh" : "bash";
+  ctx.tools.register(shellTool(toolName, async () => { calls += 1; }));
+  const commands = [
+    "python3.11 -m pip install pytest",
+    "env -u CI npm install lodash",
+    "env -C app npm install lodash",
+    "npm --prefix . install lodash",
+    "pip --disable-pip-version-check install pytest",
+  ];
+  for (const [index, command] of commands.entries()) {
+    const result = await ctx.tools.execute({
+      signal,
+      callId: ToolCallId("wrapped-install-" + index),
+      name: toolName,
+      arguments: { command },
+    });
+    assert.equal(result.isError, true, command);
+  }
+  assert.equal(calls, 0);
+  await ctx.fiber.dispose();
+  rmSync(root, { recursive: true, force: true });
+});
+
 test("real ToolRuntime keeps an allowed read silent and observes a frozen result", async () => {
-  const { ctx, root, receiptPath } = await harness(contract(), { receipts: true });
+  const { ctx, root } = await harness(contract());
   let observed;
   const toolName = process.platform === "win32" ? "pwsh" : "bash";
   ctx.tools.register(shellTool(toolName, async () => {}));
@@ -81,9 +106,26 @@ test("real ToolRuntime keeps an allowed read silent and observes a frozen result
   });
   assert.equal(result.isError, false);
   assert.deepEqual(observed, { exec: true, result: true, content: true });
-  const receipts = readFileSync(receiptPath, "utf8");
-  assert.doesNotMatch(receipts, /super-secret-value/);
-  assert.match(receipts, /arguments_sha256/);
+  await ctx.fiber.dispose();
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("disk receipt persistence is rejected during plugin load", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "dsh-efg-config-"));
+  const contractPath = path.join(root, "contract.json");
+  writeFileSync(contractPath, JSON.stringify(contract()), "utf8");
+  const ctx = new Context();
+  await ctx.plugin(SystemPrompt, {});
+  await ctx.plugin(ToolRuntime);
+  await assert.rejects(
+    async () => ctx.plugin(Guard, {
+      mode: "balanced",
+      contractPath,
+      receiptPath: path.join(root, "receipts.ndjson"),
+      maxContinuationAttempts: 2,
+    }),
+    /disk receipt persistence is disabled/,
+  );
   await ctx.fiber.dispose();
   rmSync(root, { recursive: true, force: true });
 });

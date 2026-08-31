@@ -4,6 +4,4 @@
       config:
         mode: shadow
         contractPath: .execution-fidelity/contract.json
-        receiptPath: ''
         maxContinuationAttempts: 2
-

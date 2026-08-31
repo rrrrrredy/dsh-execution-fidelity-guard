@@ -9,11 +9,15 @@ function isDirectTestCommand(command) {
   return /^\s*(?:node\s+--test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+(?:run\s+)?test|pytest|cargo\s+test|go\s+test|dotnet\s+test)(?:\s+[^;&|<>`$(){}\r\n]*)?\s*$/i.test(command);
 }
 
+function isDirectReleaseCommand(command) {
+  return /^\s*gh(?:\s+(?:(?:-R|--repo|--hostname)\s+\S+|(?:--repo|--hostname)=\S+))*\s+release\s+(?:create|view)(?:\s+[^;&|<>`$(){}\r\n]*)?\s*$/i.test(command);
+}
+
 function inferKind(exec, action) {
   const command = action.command.toLowerCase();
   const toolName = action.toolName.toLowerCase();
   if (isDirectTestCommand(command) || /(?:^|[_-])tests?(?:[_-]|$)/.test(toolName)) return "test";
-  if (/^\s*gh\s+release\s+(?:create|view)\b/i.test(command) || action.tags.includes("publish")) return "release";
+  if (isDirectReleaseCommand(command)) return "release";
   if (["bash", "pwsh", "powershell", "shell", "exec_command"].includes(toolName)) return "command";
   if (["apply_patch", "edit", "write", "str_replace_editor"].includes(toolName) || action.tags.includes("write_workspace")) return "file";
   if (/(?:browser|playwright|screenshot|real_page)/.test(toolName)) return "real_page";
@@ -82,4 +86,3 @@ export function assessCompletionEvidence(binding, records) {
     });
   return { complete: missing.length === 0, missing, reason: "evaluated" };
 }
-

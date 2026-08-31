@@ -37,7 +37,7 @@ for (const relative of required) {
 
 const pkg = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
 if (pkg.name !== "dsh-execution-fidelity-guard") failures.push("unexpected package name");
-if (pkg.version !== "0.1.0-alpha.1") failures.push("unexpected package version");
+if (pkg.version !== "0.1.0-alpha.2") failures.push("unexpected package version");
 if (pkg.dsh?.bundle?.patch !== "./cordis.patch.yml") failures.push("missing dsh.bundle.patch");
 if (pkg.engines?.node !== "^22.19.0 || >=24.0.0") failures.push("Node engine does not match DSH 0.1.2 alpha");
 for (const script of ["preinstall", "install", "postinstall", "prepare", "prepack", "postpack"]) {

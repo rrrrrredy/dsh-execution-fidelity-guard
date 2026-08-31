@@ -20,7 +20,7 @@ const ACTION_RULES = new Set([
   "external_side_effect", "unknown",
 ]);
 const EVIDENCE_KINDS = new Set([
-  "file", "command", "test", "api", "database", "real_page", "release", "user",
+  "file", "command", "test", "api", "real_page", "release",
 ]);
 const INIT_PLACEHOLDERS = new Set([
   "Replace with the exact user-requested outcome.",
@@ -129,6 +129,19 @@ export function validateTaskContractLite(value) {
       if (Array.isArray(item.acceptable_sources) && item.acceptable_sources.some((kind) => !EVIDENCE_KINDS.has(kind))) {
         errors.push(label + ".acceptable_sources contains an unsupported kind");
       }
+      if (typeof item.requirement === "string" && item.requirement.trim()) {
+        const match = item.requirement.trim().toLowerCase().match(/^evidence:([a-z_]+)(?::action:([a-z_]+))?$/);
+        if (!match) {
+          errors.push(label + ".requirement must use evidence:<kind> or evidence:<kind>:action:<tag>");
+        } else {
+          const [, kind, actionTag] = match;
+          if (!EVIDENCE_KINDS.has(kind)) errors.push(label + ".requirement contains an unsupported evidence kind");
+          if (actionTag && !ACTION_RULES.has(actionTag)) errors.push(label + ".requirement contains an unsupported action tag");
+          if (Array.isArray(item.acceptable_sources) && !item.acceptable_sources.includes(kind)) {
+            errors.push(label + ".acceptable_sources must include the requirement evidence kind");
+          }
+        }
+      }
     }
   }
   if (containsPlaceholder(value)) errors.push("contract contains generated init placeholders");
@@ -211,4 +224,3 @@ export async function loadContract(contractPath) {
     return { status: "invalid", path: contractPath, errors: [redactText(error?.message || "contract load failed", 200)] };
   }
 }
-

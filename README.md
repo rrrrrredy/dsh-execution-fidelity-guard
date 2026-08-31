@@ -18,12 +18,30 @@ It is deliberately narrower than a second agent loop. Planning, sandboxing, perm
 
 No model call, network request, transcript upload, hidden-reasoning access, or telemetry is added by this package. Arguments are hashed in receipts rather than retained verbatim.
 
+## Requirements and source preview
+
+- Node.js 22.19 or Node.js 24 or later.
+- DeepSeek Harness 0.1.2-alpha.2 for profile installation and live integration.
+- Git for the source-preview path.
+
+You can inspect the core policy and package without installing this bundle or DeepSeek Harness:
+
+```sh
+git clone https://github.com/rrrrrredy/dsh-execution-fidelity-guard.git
+cd dsh-execution-fidelity-guard
+npm test
+npm run validate
+npm run verify:pack
+```
+
+Those commands use the checked-in source and Node's standard library. They do not run `npm install` or change a Harness profile. The real ToolRuntime and AgentLoop integration suite runs in the six-job GitHub Actions matrix against the exact pinned Harness packages.
+
 ## Install into a Harness profile
 
 Pin the release or an exact commit:
 
 ```sh
-dsh plugin --profile <profile> add github:rrrrrredy/dsh-execution-fidelity-guard#v0.1.0-alpha.1
+dsh plugin --profile <profile> add github:rrrrrredy/dsh-execution-fidelity-guard#v0.1.0-alpha.2
 dsh --profile <profile> --dump-config
 ```
 
@@ -38,11 +56,10 @@ The bundled default is `shadow`. It observes deterministic conflicts and reminds
       config:
         mode: balanced
         contractPath: .execution-fidelity/contract.json
-        receiptPath: ''
         maxContinuationAttempts: 2
 ```
 
-Harness applies the profile patch after installed bundles. A later row with the same id replaces the whole configuration, so keep all four fields.
+Harness applies the profile patch after installed bundles. A later row with the same id replaces the whole configuration, so keep all three fields.
 
 Remove it with:
 
@@ -72,7 +89,9 @@ Deterministic enforcement uses structured rules:
 
 Natural-language constraints remain advisory. They never create a hard block by themselves.
 
-Completion evidence requirements use `evidence:<kind>` with one of `file`, `command`, `test`, `api`, `database`, `real_page`, `release`, or `user`. A current successful `tools/result` must match the requirement; a newer failure replaces an older pass for that requirement.
+`authorization.allowed` records a positive match; it is not an exhaustive allowlist. An unlisted action continues unless a matching rule also appears in `authorization.forbidden`, `authorization.requires_user`, or `must_and_must_not.must_not`. For example, `allowed: ["action:read"]` alone does not block workspace writes.
+
+Completion evidence requirements use `evidence:<kind>` with one of `file`, `command`, `test`, `api`, `real_page`, or `release`. A current successful `tools/result` must match the requirement; a newer failure replaces an older pass for that requirement. Release evidence is intentionally narrow: only a direct successful `gh release create` or `gh release view` command satisfies `evidence:release`; `git push`, pull-request creation, and package publication do not.
 
 ## Configuration
 
@@ -80,10 +99,9 @@ Completion evidence requirements use `evidence:<kind>` with one of `file`, `comm
 |---|---:|---|
 | `mode` | `shadow` | `off`, `shadow`, or `balanced` |
 | `contractPath` | `.execution-fidelity/contract.json` | Absolute path or workspace-relative contract path |
-| `receiptPath` | empty | Optional NDJSON receipt path; empty keeps disk persistence off |
 | `maxContinuationAttempts` | `2` | Completion-verification steering budget, from 0 to 2 |
 
-Invalid configuration fails while the plugin loads. An absent or invalid contract leaves the Guard advisory; it does not invent authorization.
+Invalid configuration fails while the plugin loads. An absent or invalid contract leaves the Guard advisory; it does not invent authorization. Guard receipts remain bounded in memory in this alpha. Disk receipt persistence is disabled; a non-empty legacy `receiptPath` is rejected during plugin load.
 
 ## DeepSeek Harness integration
 
@@ -109,9 +127,8 @@ CI executes all layers on Windows, Ubuntu, and macOS with Node 22.19 and Node 24
 
 ## Status and evidence boundary
 
-This alpha proves package shape, deterministic behavior, real Harness composition, bounded continuation, privacy properties, and cross-platform execution when its CI is green. It does not yet prove the PRD's 100-task shadow or 800-task controlled efficacy targets. Those require real traffic and cannot be replaced by synthetic tests or another model's score.
+This alpha proves package shape, deterministic behavior for the covered action forms, real Harness composition, bounded continuation, privacy properties, and cross-platform execution when its CI is green. It does not yet prove the PRD's 100-task shadow or 800-task controlled efficacy targets. Those require real traffic and cannot be replaced by synthetic tests or another model's score.
 
 ## License
 
 Apache-2.0. DeepSeek Harness is a separate project with its own license and trademarks. This repository is not affiliated with or endorsed by DeepSeek.
-
