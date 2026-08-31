@@ -106,7 +106,7 @@ test("real AgentLoop continues a completion claim at most twice when evidence is
   assert.equal(adapter.requests.length, 3);
   const notices = agent.session.events.filter((event) => event.type === "user/message" && event.data.source?.plugin === "execution-fidelity-guard");
   assert.equal(notices.length, 2);
-  await ctx.dispose();
+  await ctx.fiber.dispose();
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -126,7 +126,6 @@ test("real AgentLoop accepts current passing tool evidence without an extra veri
   assert.equal(adapter.requests.length, 2);
   const notices = agent.session.events.filter((event) => event.type === "user/message" && event.data.source?.plugin === "execution-fidelity-guard");
   assert.equal(notices.length, 0);
-  await ctx.dispose();
+  await ctx.fiber.dispose();
   rmSync(root, { recursive: true, force: true });
 });
-

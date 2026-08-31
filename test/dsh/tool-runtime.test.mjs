@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { Context } from "@deepseek-ai/cordis";
 import { ToolCallId } from "@deepseek-ai/dsh-llm";
+import SystemPrompt from "@deepseek-ai/dsh-system-prompt";
 import ToolRuntime, { defineContentToolFixture } from "@deepseek-ai/dsh-tools";
 import * as Guard from "../../index.mjs";
 
@@ -29,6 +30,7 @@ async function harness(contractValue, options = {}) {
   writeFileSync(contractPath, JSON.stringify(contractValue), "utf8");
   const receiptPath = options.receipts ? path.join(root, "receipts.ndjson") : "";
   const ctx = new Context();
+  await ctx.plugin(SystemPrompt, {});
   await ctx.plugin(ToolRuntime);
   await ctx.plugin(Guard, { mode: "balanced", contractPath, receiptPath, maxContinuationAttempts: 2 });
   return { ctx, root, receiptPath };
@@ -59,7 +61,7 @@ test("real ToolRuntime denies a deterministic local install before the body", as
   assert.equal(result.isError, true);
   assert.equal(ran, false);
   assert.match(result.content[0].text, /Execution Fidelity Guard blocked/);
-  await ctx.dispose();
+  await ctx.fiber.dispose();
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -82,7 +84,7 @@ test("real ToolRuntime keeps an allowed read silent and observes a frozen result
   const receipts = readFileSync(receiptPath, "utf8");
   assert.doesNotMatch(receipts, /super-secret-value/);
   assert.match(receipts, /arguments_sha256/);
-  await ctx.dispose();
+  await ctx.fiber.dispose();
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -99,7 +101,6 @@ test("requires-user maps to native ask and cannot execute without Host approval"
   });
   assert.equal(result.isError, true);
   assert.equal(ran, false);
-  await ctx.dispose();
+  await ctx.fiber.dispose();
   rmSync(root, { recursive: true, force: true });
 });
-
