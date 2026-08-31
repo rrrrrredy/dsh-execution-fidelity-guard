@@ -20,7 +20,7 @@ const ACTION_RULES = new Set([
   "external_side_effect", "unknown",
 ]);
 const EVIDENCE_KINDS = new Set([
-  "file", "command", "test", "api", "real_page", "release",
+  "file", "command", "test", "api", "database", "real_page", "release", "user",
 ]);
 const INIT_PLACEHOLDERS = new Set([
   "Replace with the exact user-requested outcome.",
@@ -42,7 +42,7 @@ function exactKeys(value, allowed, label, errors) {
   }
 }
 
-function stringArray(value, label, errors, minimum = 0) {
+function stringArray(value, label, errors, minimum = 0, unique = false) {
   if (!Array.isArray(value) || value.length < minimum) {
     errors.push(label + " must be an array with at least " + minimum + " item(s)");
     return;
@@ -50,7 +50,39 @@ function stringArray(value, label, errors, minimum = 0) {
   if (value.some((entry) => typeof entry !== "string" || !entry.trim())) {
     errors.push(label + " must contain only non-empty strings");
   }
-  if (new Set(value).size !== value.length) errors.push(label + " must contain unique items");
+  if (unique && new Set(value).size !== value.length) {
+    errors.push(label + " must contain unique items");
+  }
+}
+
+function isRfc3339DateTime(value) {
+  if (typeof value !== "string") return false;
+  const match = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[Zz]|([+-])(\d{2}):(\d{2}))$/,
+  );
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  const offsetHour = match[8] === undefined ? 0 : Number(match[8]);
+  const offsetMinute = match[9] === undefined ? 0 : Number(match[9]);
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return (
+    month >= 1 &&
+    month <= 12 &&
+    day >= 1 &&
+    day <= days[month - 1] &&
+    hour <= 23 &&
+    minute <= 59 &&
+    second <= 59 &&
+    offsetHour <= 23 &&
+    offsetMinute <= 59 &&
+    !Number.isNaN(Date.parse(value))
+  );
 }
 
 function containsPlaceholder(value) {
@@ -89,7 +121,7 @@ export function validateTaskContractLite(value) {
       errors.push(key + " must be a non-empty string");
     }
   }
-  stringArray(value.delivery_surface, "delivery_surface", errors, 1);
+  stringArray(value.delivery_surface, "delivery_surface", errors, 1, true);
   exactKeys(value.scope, ["include", "exclude"], "scope", errors);
   if (isRecord(value.scope)) {
     stringArray(value.scope.include, "scope.include", errors);
@@ -129,19 +161,6 @@ export function validateTaskContractLite(value) {
       if (Array.isArray(item.acceptable_sources) && item.acceptable_sources.some((kind) => !EVIDENCE_KINDS.has(kind))) {
         errors.push(label + ".acceptable_sources contains an unsupported kind");
       }
-      if (typeof item.requirement === "string" && item.requirement.trim()) {
-        const match = item.requirement.trim().toLowerCase().match(/^evidence:([a-z_]+)(?::action:([a-z_]+))?$/);
-        if (!match) {
-          errors.push(label + ".requirement must use evidence:<kind> or evidence:<kind>:action:<tag>");
-        } else {
-          const [, kind, actionTag] = match;
-          if (!EVIDENCE_KINDS.has(kind)) errors.push(label + ".requirement contains an unsupported evidence kind");
-          if (actionTag && !ACTION_RULES.has(actionTag)) errors.push(label + ".requirement contains an unsupported action tag");
-          if (Array.isArray(item.acceptable_sources) && !item.acceptable_sources.includes(kind)) {
-            errors.push(label + ".acceptable_sources must include the requirement evidence kind");
-          }
-        }
-      }
     }
   }
   if (containsPlaceholder(value)) errors.push("contract contains generated init placeholders");
@@ -160,7 +179,7 @@ function validateProviderEnvelope(envelope, projection) {
   if (!Number.isInteger(envelope.contract_version) || envelope.contract_version < 1) errors.push("contract_version must be a positive integer");
   if (envelope.source !== "user-intent-plugin") errors.push("provider envelope source must be user-intent-plugin");
   stringArray(envelope.source_message_refs, "source_message_refs", errors);
-  if (typeof envelope.updated_at !== "string" || !Number.isFinite(Date.parse(envelope.updated_at))) errors.push("updated_at must be an ISO date-time");
+  if (!isRfc3339DateTime(envelope.updated_at)) errors.push("updated_at must be an ISO date-time");
   const projectionHash = sha256(projection);
   if (envelope.snapshot_sha256 !== projectionHash) errors.push("snapshot_sha256 does not match the canonical projection");
   return errors;

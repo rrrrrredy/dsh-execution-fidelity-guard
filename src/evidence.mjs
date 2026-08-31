@@ -1,23 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 import { makeId, sha256 } from "./canonical.mjs";
+import { inferToolOutcome } from "./outcome.mjs";
 
 export function evidenceRequirementRef(index, requirement) {
   return "requirement:" + index + ":" + sha256(requirement).slice(0, 16);
 }
 
 function isDirectTestCommand(command) {
+  if (/(?:^|\s)(?:--help|-h|--version|--collect-only|--co|-list|--list|--list-tests|--if-present|--no-run)(?:=|\s|$)/i.test(command)) return false;
   return /^\s*(?:node\s+--test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+(?:run\s+)?test|pytest|cargo\s+test|go\s+test|dotnet\s+test)(?:\s+[^;&|<>`$(){}\r\n]*)?\s*$/i.test(command);
-}
-
-function isDirectReleaseCommand(command) {
-  return /^\s*gh(?:\s+(?:(?:-R|--repo|--hostname)\s+\S+|(?:--repo|--hostname)=\S+))*\s+release\s+(?:create|view)(?:\s+[^;&|<>`$(){}\r\n]*)?\s*$/i.test(command);
 }
 
 function inferKind(exec, action) {
   const command = action.command.toLowerCase();
   const toolName = action.toolName.toLowerCase();
-  if (isDirectTestCommand(command) || /(?:^|[_-])tests?(?:[_-]|$)/.test(toolName)) return "test";
-  if (isDirectReleaseCommand(command)) return "release";
+  if (isDirectTestCommand(command)) return "test";
   if (["bash", "pwsh", "powershell", "shell", "exec_command"].includes(toolName)) return "command";
   if (["apply_patch", "edit", "write", "str_replace_editor"].includes(toolName) || action.tags.includes("write_workspace")) return "file";
   if (/(?:browser|playwright|screenshot|real_page)/.test(toolName)) return "real_page";
@@ -41,19 +38,26 @@ function matchedRequirementRefs(binding, evidence, action) {
 
 export function deriveEvidence(exec, result, binding, action, now = new Date()) {
   const kind = inferKind(exec, action);
+  const outcome = inferToolOutcome(result, action.toolName, action.command);
+  const status = outcome.status;
   const evidence = {
     evidence_ref: makeId("ev_", [String(exec.callId), kind]),
     kind,
     source: action.toolName + ":" + sha256(exec.arguments ?? null).slice(0, 16),
-    sha256: sha256({ isError: result.isError, content: result.content, error: result.error ?? null }),
+    sha256: sha256({
+      isError: result.isError,
+      value: result.value ?? null,
+      content: result.content,
+      error: result.error ?? null,
+    }),
     captured_at: now.toISOString(),
     freshness: "current_event",
     coverage: "partial_requirement",
-    status: result.isError ? "fail" : "pass",
+    status,
     attestation: "dsh_tools_result",
   };
   const requirementRefs = matchedRequirementRefs(binding, evidence, action);
-  if (requirementRefs.length) evidence.coverage = "full_requirement";
+  if (requirementRefs.length && status !== "unknown") evidence.coverage = "full_requirement";
   return {
     schema_version: "1.0",
     evidence_ref: evidence.evidence_ref,

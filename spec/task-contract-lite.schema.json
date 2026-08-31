@@ -22,8 +22,8 @@
       "additionalProperties": false,
       "required": ["include", "exclude"],
       "properties": {
-        "include": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
-        "exclude": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+        "include": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "exclude": { "type": "array", "items": { "type": "string", "minLength": 1 } }
       }
     },
     "must_and_must_not": {
@@ -31,8 +31,8 @@
       "additionalProperties": false,
       "required": ["must", "must_not"],
       "properties": {
-        "must": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
-        "must_not": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+        "must": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "must_not": { "type": "array", "items": { "type": "string", "minLength": 1 } }
       }
     },
     "authorization": {
@@ -40,9 +40,9 @@
       "additionalProperties": false,
       "required": ["allowed", "requires_user", "forbidden"],
       "properties": {
-        "allowed": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
-        "requires_user": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
-        "forbidden": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+        "allowed": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "requires_user": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "forbidden": { "type": "array", "items": { "type": "string", "minLength": 1 } }
       }
     },
     "completion_evidence": {
@@ -53,14 +53,11 @@
         "additionalProperties": false,
         "required": ["requirement", "acceptable_sources"],
         "properties": {
-          "requirement": {
-            "type": "string",
-            "pattern": "^evidence:(file|command|test|api|real_page|release)(:action:(read|write|write_workspace|delete|destructive|install_local|network|publish|external|external_side_effect|unknown))?$"
-          },
+          "requirement": { "type": "string", "minLength": 1 },
           "acceptable_sources": {
             "type": "array",
             "minItems": 1,
-            "items": { "enum": ["file", "command", "test", "api", "real_page", "release"] }
+            "items": { "enum": ["file", "command", "test", "api", "database", "real_page", "release", "user"] }
           }
         }
       }

@@ -12,9 +12,9 @@ It is deliberately narrower than a second agent loop. Planning, sandboxing, perm
 |---|---|
 | Low-cost, reversible read | Continues silently |
 | Weak or natural-language risk signal | Adds a model-visible reminder |
-| Structured rule says the user must decide | Returns Harness-native `ask` |
+| Structured rule says the user must decide | `shadow` reminds and proceeds; `balanced` returns Harness-native `ask` |
 | Structured rule deterministically forbids the action | Denies the current call in `balanced` mode |
-| Assistant claims completion without required evidence | Steers one more verification step, at most twice |
+| Assistant claims completion without required evidence | `shadow` records the gap; `balanced` steers another verification step, at most twice |
 
 No model call, network request, transcript upload, hidden-reasoning access, or telemetry is added by this package. Arguments are hashed in receipts rather than retained verbatim.
 
@@ -47,7 +47,7 @@ dsh --profile <profile> --dump-config
 
 The package ships JavaScript directly and has no `prepare`, `install`, or `postinstall` script. A Git install therefore needs no package build permission.
 
-The bundled default is `shadow`. It observes deterministic conflicts and reminds the model without stopping the action. After reviewing shadow behavior, override the row in the profile's `cordis.patch.yml` to enable enforcement:
+The bundled default is `shadow`. Pending tool conflicts become non-blocking reminders, while missing completion evidence is recorded without steering or stopping the turn. After reviewing shadow behavior, override the row in the profile's `cordis.patch.yml` to enable enforcement and bounded completion steering:
 
 ```yaml
 - insert:
@@ -91,7 +91,11 @@ Natural-language constraints remain advisory. They never create a hard block by 
 
 `authorization.allowed` records a positive match; it is not an exhaustive allowlist. An unlisted action continues unless a matching rule also appears in `authorization.forbidden`, `authorization.requires_user`, or `must_and_must_not.must_not`. For example, `allowed: ["action:read"]` alone does not block workspace writes.
 
-Completion evidence requirements use `evidence:<kind>` with one of `file`, `command`, `test`, `api`, `real_page`, or `release`. A current successful `tools/result` must match the requirement; a newer failure replaces an older pass for that requirement. Release evidence is intentionally narrow: only a direct successful `gh release create` or `gh release view` command satisfies `evidence:release`; `git push`, pull-request creation, and package publication do not.
+The shared contract accepts the canonical evidence-source vocabulary: `file`, `command`, `test`, `api`, `database`, `real_page`, `release`, and `user`, plus natural-language requirements. This DSH alpha automatically produces only structured `evidence:file`, `evidence:command`, `evidence:test`, `evidence:api`, and `evidence:real_page` matches. Requirements without an implemented producer stay missing; they never invalidate or weaken the contract's action rules.
+
+A current successful `tools/result` must match a supported structured requirement; a newer failure replaces an older pass for that requirement. Test help, version, list, collection-only, `npm --if-present`, and compile-without-running forms such as `cargo test --no-run` do not satisfy `evidence:test`. For shell tools, a foreground integer exit code is required: zero passes, nonzero fails, and background or missing exit status remains unknown.
+
+This alpha has no automatic `release`, `database`, or `user` evidence producer. The seven-field contract does not bind an expected release repository and tag, so a push, pull request, package publication, or release command remains generic command evidence and cannot prove the intended Release.
 
 ## Configuration
 
@@ -108,7 +112,7 @@ Invalid configuration fails while the plugin loads. An absent or invalid contrac
 - `tools/pre-execute`: classifies `bash` on Linux/macOS and `pwsh` on Windows, then returns allow, deny, or native ask.
 - `ctx.tools.guard()`: holds the deterministic owner veto after the extensible pre-execute waterfall.
 - `tools/result`: observes the frozen authoritative outcome and records current evidence.
-- `agent/turn-stopping`: inspects the current assistant message and can steer bounded verification.
+- `agent/turn-stopping`: inspects the current assistant message; only `balanced` can steer bounded verification, while `shadow` records the gap without steering.
 
 See [integration contract](docs/integration-contract.md), [compatibility](docs/compatibility.md), and [known limitations](docs/limitations.md).
 
@@ -127,7 +131,7 @@ CI executes all layers on Windows, Ubuntu, and macOS with Node 22.19 and Node 24
 
 ## Status and evidence boundary
 
-This alpha proves package shape, deterministic behavior for the covered action forms, real Harness composition, bounded continuation, privacy properties, and cross-platform execution when its CI is green. It does not yet prove the PRD's 100-task shadow or 800-task controlled efficacy targets. Those require real traffic and cannot be replaced by synthetic tests or another model's score.
+Green CI provides engineering evidence for the checked package shape, covered deterministic cases, receipt redaction, and source/runtime integration on the CI matrix. It does not prove complete privacy, installed-profile UX, real-world efficacy, or the PRD's 100-task shadow and 800-task controlled targets. Those require real traffic and cannot be replaced by synthetic tests or another model's score.
 
 ## License
 

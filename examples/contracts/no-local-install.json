@@ -16,8 +16,6 @@
     "forbidden": ["action:install_local", "action:destructive"]
   },
   "completion_evidence": [
-    { "requirement": "evidence:test", "acceptable_sources": ["test"] },
-    { "requirement": "evidence:release", "acceptable_sources": ["release"] }
+    { "requirement": "evidence:test", "acceptable_sources": ["test"] }
   ]
 }
-

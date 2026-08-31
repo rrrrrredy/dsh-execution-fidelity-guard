@@ -117,6 +117,16 @@ export function apply(ctx, rawConfig = {}) {
     const assistantText = assistantTextForTurn(agent, turn);
     const assessment = assessTurnStop(binding, recordsFor(evidenceByAgent, agent, unownedEvidence), assistantText);
     if (!assessment.shouldVerify || assessment.complete) return;
+    if (config.mode === "shadow") {
+      recordReceipt(agent, createContinuationReceipt({
+        binding,
+        turn,
+        missing: assessment.missing,
+        attempt: 0,
+        shadow: true,
+      }));
+      return;
+    }
     const contractKey = binding.envelope.contract_ref + ":" + binding.envelope.contract_version + ":" + turn;
     const prior = attemptsByAgent.get(agent);
     const attempt = prior?.key === contractKey ? prior.count : 0;

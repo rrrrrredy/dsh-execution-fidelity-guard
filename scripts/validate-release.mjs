@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const required = [
   "package.json", "index.mjs", "cordis.patch.yml", "README.md", "LICENSE", "NOTICE",
   "src/plugin.mjs", "src/contract.mjs", "src/classify.mjs", "src/policy.mjs",
-  "src/evidence.mjs", "src/completion.mjs", "src/receipts.mjs",
+  "src/evidence.mjs", "src/completion.mjs", "src/outcome.mjs", "src/receipts.mjs",
   "spec/task-contract-lite.schema.json", "spec/receipt.schema.json",
   "examples/contracts/no-local-install.json", ".github/workflows/ci.yml",
 ];

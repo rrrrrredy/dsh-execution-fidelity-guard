@@ -75,6 +75,25 @@ test("real ToolRuntime denies wrapped and option-prefixed installs before the bo
     "env -C app npm install lodash",
     "npm --prefix . install lodash",
     "pip --disable-pip-version-check install pytest",
+    "npm --loglevel warn install lodash",
+    "pip --index-url https://example.invalid/simple install pytest",
+    "python3.11 -m pip --index-url https://example.invalid/simple install pytest",
+    "pnpm --filter app add lodash",
+    "cargo --color always install ripgrep",
+    "command -- npm install lodash",
+    "nice -n 5 npm install lodash",
+    "timeout 30 npm install lodash",
+    "env env env env env env env env env npm install lodash",
+    "env -S \"npm install lodash\"",
+    "env --split-string=\"npm install lodash\"",
+    "env -S npm\\ install\\ lodash",
+    "env --split-string=npm\\ install\\ lodash",
+    "sudo -H apt install jq",
+    "sudo -E -H apt install jq",
+    "sh -ec \"npm install lodash\"",
+    "bash -xec \"npm install lodash\"",
+    "npm add lodash",
+    "yarn --cwd app dlx create-vite",
   ];
   for (const [index, command] of commands.entries()) {
     const result = await ctx.tools.execute({
@@ -88,6 +107,45 @@ test("real ToolRuntime denies wrapped and option-prefixed installs before the bo
   assert.equal(calls, 0);
   await ctx.fiber.dispose();
   rmSync(root, { recursive: true, force: true });
+});
+
+test("real ToolRuntime denies git writes and GitHub mutations before the body", async () => {
+  const toolName = process.platform === "win32" ? "pwsh" : "bash";
+  for (const [forbidden, commands] of [
+    ["action:write", [
+      "git apply change.patch",
+      "git cherry-pick deadbeef",
+      "git stash",
+      "git switch feature",
+      "git worktree add ../worktree feature",
+      "git branch new-feature",
+      "git branch -M main",
+      "git branch --set-upstream-to=origin/main main",
+      "npm uninstall lodash",
+      "npm update lodash",
+    ]],
+    ["action:external", [
+      "gh secret set TOKEN",
+      "gh workflow run ci.yml",
+      "gh api -X POST repos/example/project/issues",
+    ]],
+  ]) {
+    const { ctx, root } = await harness(contract({ forbidden: [forbidden], requiresUser: [] }));
+    let calls = 0;
+    ctx.tools.register(shellTool(toolName, async () => { calls += 1; }));
+    for (const [index, command] of commands.entries()) {
+      const result = await ctx.tools.execute({
+        signal,
+        callId: ToolCallId(forbidden + "-" + index),
+        name: toolName,
+        arguments: { command },
+      });
+      assert.equal(result.isError, true, command);
+    }
+    assert.equal(calls, 0);
+    await ctx.fiber.dispose();
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("real ToolRuntime keeps an allowed read silent and observes a frozen result", async () => {

@@ -37,14 +37,28 @@ test("rejects extra fields, placeholders, and unsupported action tags", () => {
   assert.match(errors, /unsupported action rule tag/);
 });
 
-test("rejects unsupported or impossible completion evidence requirements", () => {
-  const unsupported = contract();
-  unsupported.completion_evidence = [{ requirement: "evidence:user", acceptable_sources: ["user"] }];
-  assert.match(validateTaskContractLite(unsupported).join("\n"), /unsupported evidence kind|unsupported kind/);
+test("accepts the canonical evidence vocabulary without weakening action rules", () => {
+  for (const completionEvidence of [
+    [{ requirement: "evidence:user", acceptable_sources: ["user"] }],
+    [{ requirement: "evidence:release", acceptable_sources: ["release"] }],
+    [{ requirement: "A reviewer approved the result", acceptable_sources: ["user"] }],
+  ]) {
+    const value = contract();
+    value.completion_evidence = completionEvidence;
+    assert.deepEqual(validateTaskContractLite(value), []);
+    assert.equal(parseContractDocument(value).status, "bound");
+  }
+});
 
-  const mismatch = contract();
-  mismatch.completion_evidence = [{ requirement: "evidence:release", acceptable_sources: ["test"] }];
-  assert.match(validateTaskContractLite(mismatch).join("\n"), /must include the requirement evidence kind/);
+test("matches canonical 1.0 duplicate semantics", () => {
+  const value = contract();
+  value.scope.include = ["source", "source"];
+  value.must_and_must_not.must = ["run tests", "run tests"];
+  value.authorization.forbidden = ["action:install_local", "action:install_local"];
+  value.completion_evidence[0].acceptable_sources = ["test", "test"];
+  assert.deepEqual(validateTaskContractLite(value), []);
+  value.delivery_surface = ["GitHub", "GitHub"];
+  assert.match(validateTaskContractLite(value).join("\n"), /delivery_surface must contain unique items/);
 });
 
 test("accepts a versioned provider projection and rejects a mismatched digest", () => {
@@ -60,4 +74,18 @@ test("accepts a versioned provider projection and rejects a mismatched digest", 
   };
   assert.equal(parseContractDocument({ envelope, projection }).status, "bound");
   assert.equal(parseContractDocument({ envelope: { ...envelope, snapshot_sha256: "0".repeat(64) }, projection }).status, "invalid");
+});
+
+test("provider updated_at uses strict RFC 3339 calendar validation", () => {
+  const projection = contract();
+  const envelope = {
+    schema_version: "1.0",
+    contract_ref: "intent:bad-date",
+    contract_version: 1,
+    source: "user-intent-plugin",
+    source_message_refs: [],
+    snapshot_sha256: sha256(projection),
+    updated_at: "2026-02-31T00:00:00.000Z",
+  };
+  assert.equal(parseContractDocument({ envelope, projection }).status, "invalid");
 });

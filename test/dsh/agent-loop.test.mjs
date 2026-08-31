@@ -60,11 +60,11 @@ function contract() {
     scope: { include: ["source"], exclude: [] },
     must_and_must_not: { must: ["verify tests"], must_not: [] },
     authorization: { allowed: ["action:read"], requires_user: [], forbidden: [] },
-    completion_evidence: [{ requirement: "evidence:test", acceptable_sources: ["test"] }],
+    completion_evidence: [{ requirement: "evidence:command", acceptable_sources: ["command"] }],
   };
 }
 
-async function harness(adapter) {
+async function harness(adapter, mode = "balanced") {
   const root = mkdtempSync(path.join(os.tmpdir(), "dsh-efg-loop-"));
   const contractPath = path.join(root, "contract.json");
   writeFileSync(contractPath, JSON.stringify(contract()), "utf8");
@@ -72,7 +72,7 @@ async function harness(adapter) {
   await mountAgentLoopTestDependencies(ctx);
   await ctx.plugin(SessionProjectionRegistry);
   await ctx.plugin(AgentLoop, { agents: [] });
-  await ctx.plugin(Guard, { mode: "balanced", contractPath, receiptPath: "", maxContinuationAttempts: 2 });
+  await ctx.plugin(Guard, { mode, contractPath, receiptPath: "", maxContinuationAttempts: 2 });
   ctx.llm.registerAdapter(["mock"], adapter);
   const agent = ctx.agentLoop.create(SessionId("efg-agent"), { provider: "mock", model: "mock" });
   return { ctx, agent, root };
@@ -110,7 +110,7 @@ test("real AgentLoop continues a completion claim at most twice when evidence is
   rmSync(root, { recursive: true, force: true });
 });
 
-test("real AgentLoop accepts current passing tool evidence without an extra verification step", async () => {
+test("real AgentLoop accepts current passing command evidence without an extra verification step", async () => {
   const adapter = new ScriptedAdapter([
     toolCallResponse("tests-1", "run_tests", {}),
     textResponse("All tests passed. Done."),
@@ -125,6 +125,23 @@ test("real AgentLoop accepts current passing tool evidence without an extra veri
   await send(ctx, agent, "run tests and finish");
   assert.equal(adapter.requests.length, 2);
   const notices = agent.session.events.filter((event) => event.type === "user/message" && event.data.source?.plugin === "execution-fidelity-guard");
+  assert.equal(notices.length, 0);
+  await ctx.fiber.dispose();
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("real AgentLoop shadow mode records a would-continue result without steering", async () => {
+  const adapter = new ScriptedAdapter([
+    textResponse("All tests passed. Done."),
+  ]);
+  const { ctx, agent, root } = await harness(adapter, "shadow");
+  await send(ctx, agent, "finish the task");
+  assert.equal(adapter.requests.length, 1);
+  const notices = agent.session.events.filter(
+    (event) =>
+      event.type === "user/message" &&
+      event.data.source?.plugin === "execution-fidelity-guard",
+  );
   assert.equal(notices.length, 0);
   await ctx.fiber.dispose();
   rmSync(root, { recursive: true, force: true });
