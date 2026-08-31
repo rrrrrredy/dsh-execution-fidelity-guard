@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rrrrrredy/dsh-execution-fidelity-guard/spec/receipt.schema.json",
+  "title": "Execution Fidelity Guard receipt",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "receipt_id", "observed_at", "contract_ref", "contract_version", "phase", "decision", "authority", "reason_codes"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "receipt_id": { "type": "string", "minLength": 1 },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "contract_ref": { "type": "string", "minLength": 1 },
+    "contract_version": { "type": "integer", "minimum": 1 },
+    "phase": { "enum": ["pre_tool", "tool_result", "turn_stopping"] },
+    "decision": { "type": "string", "minLength": 1 },
+    "authority": { "type": "string", "minLength": 1 },
+    "reason_codes": { "type": "array", "items": { "type": "string" } },
+    "arguments_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}
+

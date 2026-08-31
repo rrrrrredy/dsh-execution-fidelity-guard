@@ -1,0 +1,9 @@
+- insert:
+    - id: execution-fidelity-guard
+      name: dsh-execution-fidelity-guard
+      config:
+        mode: shadow
+        contractPath: .execution-fidelity/contract.json
+        receiptPath: ''
+        maxContinuationAttempts: 2
+

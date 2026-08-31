@@ -1,0 +1,23 @@
+{
+  "objective": "Complete the requested repository work without installing software on the local machine.",
+  "primary_object": "the current repository",
+  "delivery_surface": ["repository", "GitHub release"],
+  "scope": {
+    "include": ["source", "tests", "documentation", "release artifacts"],
+    "exclude": ["global configuration", "unrelated repositories"]
+  },
+  "must_and_must_not": {
+    "must": ["preserve user-owned changes", "report unverified claims"],
+    "must_not": ["action:install_local"]
+  },
+  "authorization": {
+    "allowed": ["action:read", "action:write_workspace"],
+    "requires_user": ["action:publish"],
+    "forbidden": ["action:install_local", "action:destructive"]
+  },
+  "completion_evidence": [
+    { "requirement": "evidence:test", "acceptable_sources": ["test"] },
+    { "requirement": "evidence:release", "acceptable_sources": ["release"] }
+  ]
+}
+
