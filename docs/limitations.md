@@ -13,8 +13,6 @@
 - Shell evidence requires the official foreground result shape with an integer exit code. Background processes and success wrappers without an exit code remain unknown and cannot satisfy completion.
 - The Guard does not capture hidden reasoning, full transcripts, arbitrary tool values, or approval history.
 - No semantic model is bundled. Sparse semantic review remains future opt-in work and can never hard-block by itself.
-- No installed-client UI walkthrough has been performed on the user's machine because the delivery requirement prohibits local installation.
-- The PRD's 100 shadow tasks, 800 controlled tasks, efficacy thresholds, semantic latency, token cost, and user-time targets remain unverified until real online evaluation exists.
 - In `shadow`, pending-tool conflicts are reminders and completion gaps are
   recorded without turn steering. Only `balanced` denies deterministic
   conflicts, asks for user-owned choices, or steers bounded verification.
